@@ -1,30 +1,25 @@
-# DAG-ERC
-Pytorch code for ACL-IJCNLP 2021 accepted paper "Directed Acyclic Graph Network for Conversational Emotion Recognition"
-
-## Requirements
-* Python 3.6
-* PyTorch 1.6.0
-* [Transformers](https://github.com/huggingface/transformers) 3.5.1
-* CUDA 10.1
-
-## Preparation
+# MultiDAG
+Using DAG + hybrid curriculum learning with multimodal data
 
 ### Datasets and Utterance Feature
-You can download the dataset and extracted utterance feature from 
-https://drive.google.com/file/d/1R5K_2PlZ3p3RFQ1Ycgmo3TgxvYBzptQG/view?usp=sharing
-or https://pan.baidu.com/s/1H_LXQbDCfbWlwG1KvzNW6Q 提取码 c9vk
+You can download the dataset and extracted utterance feature from https://drive.google.com/drive/folders/1zCfjx-HhqEY2tQlxvg1X_6T7sB6hVA2T?usp=sharing. Multimodal datasets are only available for IEMOCAP and MELD, marking with "_mm" in their names.
 
 ## Training
-You can train the models with the following codes:
+To train model with all three modals (not using hybrid curriculum): 
+`!python run.py --dataset_name IEMOCAP --gnn_layers 4 --lr 0.0005 --batch_size 16 --epochs 30 --dropout 0.4 --emb_dim 2948`
+  (2948 = 1024 + 1582 + 342)
+In read function (dataset.py): 
+`features.append(u['cls'][0]+u['cls'][1]+u['cls'][2])`
+To run program with text + visual: 
+`!python run.py --dataset_name IEMOCAP --gnn_layers 4 --lr 0.0005 --batch_size 16 --epochs 30 --dropout 0.4 --emb_dim 1366`
+  (1366 = 1024 + 342)
+In read function (dataset.py):
+`features.append(u['cls'][0]+u['cls'][2])`
+Evaluate (required saving model first):
+`!python evaluate.py --dataset_name IEMOCAP --state_dict_file /link/to/saved/model --gnn_layers 4 --lr 0.0005 --batch_size 16 --dropout 0.4 --emb_dim 2948`
 
-For IEMOCAP: 
-`python run.py --dataset IEMOCAP --gnn_layers 4 --lr 0.0005 --batch_size 16 --epochs 30 --dropout 0.2`
+To train model with curriculum learning: adding --hybrid_curriculum and --bucket_number parameter.
+Train model with all three modals and curriculum learning: 
+`!python run.py --dataset_name IEMOCAP --gnn_layers 4 --lr 0.0005 --batch_size 16 --epochs 30 --dropout 0.4 --emb_dim 2948 --hybrid_curriculum --bucket_number 12`
 
-For MELD: 
-`python run.py --dataset MELD --lr 0.00001 --batch_size 64 --epochs 70 --dropout 0.1`
 
-For DailyDialog: 
-`python run.py --dataset EmoryNLP --lr 0.00005 --batch_size 32 --epochs 100 --dropout 0.3`
-
-For EmoryNLP: 
-`python run.py --dataset DailyDialog --gnn_layers 3 --lr 0.00002 --batch_size 64 --epochs 50 --dropout 0.3`
