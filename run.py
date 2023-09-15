@@ -4,7 +4,7 @@ import numpy as np, argparse, time, pickle, random
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from dataloader import IEMOCAPDataset
+from dataloader import IEMOCAPDataset, get_train_loader
 from model import *
 from sklearn.metrics import f1_score, confusion_matrix, accuracy_score, classification_report, \
     precision_recall_fscore_support
@@ -92,6 +92,11 @@ if __name__ == '__main__':
 
     parser.add_argument('--nodal_att_type', type=str, default=None, choices=['global','past'], help='type of nodal attention')
 
+    parser.add_argument('--hybrid_curriculum', action='store_true', default=False, help='Enables hybrid curriculum')
+
+    parser.add_argument('--bucket_number', type=int, default=0)
+
+    parser.add_argument('--max_epoch_per_baby_step', type=int, default=0)
     args = parser.parse_args()
     print(args)
     
@@ -136,18 +141,30 @@ if __name__ == '__main__':
     all_fscore, all_acc, all_loss = [], [], []
     best_acc = 0.
     best_fscore = 0.
-
+    best_epoch = 0
     best_model = None
     for e in range(n_epochs):
         start_time = time.time()
-
-        if args.dataset_name=='DailyDialog':
-            train_loss, train_acc, _, _, train_micro_fscore, train_macro_fscore = train_or_eval_model(model, loss_function,
-                                                                                                train_loader, e, cuda,
-                                                                                                args, optimizer, True)
-            valid_loss, valid_acc, _, _, valid_micro_fscore, valid_macro_fscore = train_or_eval_model(model, loss_function,
-                                                                                                valid_loader, e, cuda, args)
-            test_loss, test_acc, test_label, test_pred, test_micro_fscore, test_macro_fscore = train_or_eval_model(model,loss_function, test_loader, e, cuda, args)
+        #for hybrid curiculum learning
+        if e + 1 < args.bucket_number:
+            train_loader = get_train_loader(dataset_name=args.dataset_name, batch_size=batch_size, num_workers=0,
+                                            args=args, babystep_index=e + 1)
+        else:
+            train_loader = get_train_loader(dataset_name=args.dataset_name, batch_size=batch_size, num_workers=0,
+                                            args=args, babystep_index=args.bucket_number)
+        if args.dataset_name == 'DailyDialog':
+            train_loss, train_acc, _, _, train_micro_fscore, train_macro_fscore = train_or_eval_model(model,
+                                                                                                      loss_function,
+                                                                                                      train_loader, e,
+                                                                                                      cuda,
+                                                                                                      args, optimizer,
+                                                                                                      True)
+            valid_loss, valid_acc, _, _, valid_micro_fscore, valid_macro_fscore = train_or_eval_model(model,
+                                                                                                      loss_function,
+                                                                                                      valid_loader, e,
+                                                                                                      cuda, args)
+            test_loss, test_acc, test_label, test_pred, test_micro_fscore, test_macro_fscore = train_or_eval_model(
+                model, loss_function, test_loader, e, cuda, args)
 
             all_fscore.append([valid_micro_fscore, test_micro_fscore, valid_macro_fscore, test_macro_fscore])
 
@@ -164,16 +181,25 @@ if __name__ == '__main__':
             test_loss, test_acc, test_label, test_pred, test_fscore= train_or_eval_model(model,loss_function, test_loader, e, cuda, args)
 
             all_fscore.append([valid_fscore, test_fscore])
-  
-            logger.info( 'Epoch: {}, train_loss: {}, train_acc: {}, train_fscore: {}, valid_loss: {}, valid_acc: {}, valid_fscore: {}, test_loss: {}, test_acc: {}, test_fscore: {}, time: {} sec'. \
-                format(e + 1, train_loss, train_acc, train_fscore, valid_loss, valid_acc, valid_fscore, test_loss, test_acc,
-                test_fscore, round(time.time() - start_time, 2)))
 
-        #torch.save(model.state_dict(), path + args.dataset_name + '/model_' + str(e) + '_' + str(test_acc)+ '.pkl')
+            logger.info(
+                'Epoch: {}, train_loss: {}, train_acc: {}, train_fscore: {}, valid_loss: {}, valid_acc: {}, valid_fscore: {}, test_loss: {}, test_acc: {}, test_fscore: {}, time: {} sec'. \
+                format(e + 1, train_loss, train_acc, train_fscore, valid_loss, valid_acc, valid_fscore, test_loss,
+                       test_acc,
+                       test_fscore, round(time.time() - start_time, 2)))
+        if (test_fscore > best_fscore):
+            best_fscore = test_fscore
+            best_model = copy.deepcopy(model.state_dict())
+            # print(test_fscore)
+            # print(best_model)
+            best_epoch = e + 1
+        # torch.save(model.state_dict(), path + args.dataset_name + '/model_' + str(e) + '_' + str(test_acc)+ '.pkl')
 
         e += 1
-
-
+    #save model
+    torch.save(best_model, path + args.dataset_name + '/model_' + str(best_epoch) + '_' + str(best_fscore) + '_' + str(
+        args.gnn_layers) + '.pkl')
+    # print(best_model)
     if args.tensorboard:
         writer.close()
 

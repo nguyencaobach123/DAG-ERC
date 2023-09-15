@@ -2,13 +2,15 @@ import os
 os.environ["CUDA_VISIBLE_DEVICES"] = '0' 
 import numpy as np, argparse, time, pickle, random
 import torch
+import matplotlib
 import torch.nn as nn
 import torch.optim as optim
 from dataloader import IEMOCAPDataset
 from model import *
 from sklearn.metrics import f1_score, confusion_matrix, accuracy_score, classification_report, \
-    precision_recall_fscore_support
-from trainer import  train_or_eval_model, save_badcase
+    precision_recall_fscore_support, ConfusionMatrixDisplay
+import matplotlib.pyplot as plt
+from trainer import train_or_eval_model, save_badcase
 from dataset import IEMOCAPDataset
 from dataloader import get_IEMOCAP_loaders
 from transformers import AdamW
@@ -70,8 +72,32 @@ def evaluate(model,  dataloader, cuda, args, speaker_vocab, label_vocab):
     avg_accuracy = round(accuracy_score(new_labels, new_preds) * 100, 2)
     if args.dataset_name in ['IEMOCAP', 'MELD', 'EmoryNLP']:
         avg_fscore = round(f1_score(new_labels, new_preds, average='weighted') * 100, 2)
+        # get f1 score for each class to generate confusion matrix
+        # fscore_perclass = f1_score(new_labels, new_preds, average=None)
+        # print('fscore_perclass', fscore_perclass)
         print('test_accuracy', avg_accuracy)
         print('test_f1', avg_fscore)
+        # confusion matrix test, not working on colab
+        # print(new_labels)
+        # cm = confusion_matrix(new_labels, new_preds, labels=[0, 1, 2, 3, 4, 5, 6])
+        # print(cm)
+        # per_class_accuracies = {}
+        #
+        # # Calculate the accuracy for each one of our classes
+        # for idx, cls in enumerate(label_vocab['itos']):
+        #     # True negatives are all the samples that are not our current GT class (not the current row)
+        #     # and were not predicted as the current class (not the current column)
+        #     true_negatives = np.sum(np.delete(np.delete(cm, idx, axis=0), idx, axis=1))
+        #
+        #     # True positives are all the samples of our current GT class that were predicted as such
+        #     true_positives = cm[idx, idx]
+        #
+        #     # The accuracy for the current class is the ratio between correct predictions to all predictions
+        #     per_class_accuracies[cls] = (true_positives + true_negatives) / np.sum(cm)
+        # print('acc:', per_class_accuracies)
+        # disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=label_vocab['itos'])
+        # disp.plot()
+        # plt.show()
         return
     else:
         avg_micro_fscore = round(f1_score(new_labels, new_preds, average='micro', labels=list(range(1, 7))) * 100, 2)
@@ -126,7 +152,12 @@ if __name__ == '__main__':
 
     parser.add_argument('--tensorboard', action='store_true', default=False, help='Enables tensorboard log')
 
-    parser.add_argument('--nodal_att_type', type=str, default=None, choices=['global','past'], help='type of nodal attention')
+    parser.add_argument('--nodal_att_type', type=str, default=None, choices=['global', 'past'],
+                        help='type of nodal attention')
+
+    parser.add_argument('--hybrid_curriculum', action='store_true', default=False, help='Enables hybrid curriculum')
+
+    parser.add_argument('--bucket_number', type=int, default=0, help='Number of buckets using')
 
     args = parser.parse_args()
     print(args)
@@ -149,7 +180,8 @@ if __name__ == '__main__':
     cuda = args.cuda
     n_epochs = args.epochs
     batch_size = args.batch_size
-    train_loader, valid_loader, test_loader, speaker_vocab, label_vocab, person_vec = get_IEMOCAP_loaders(dataset_name=args.dataset_name, batch_size=batch_size, num_workers=0, args = args)
+    valid_loader, test_loader, speaker_vocab, label_vocab, person_vec = get_IEMOCAP_loaders(
+        dataset_name=args.dataset_name, batch_size=batch_size, num_workers=0, args=args)
     n_classes = len(label_vocab['itos'])
 
     print('building model..')

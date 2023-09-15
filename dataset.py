@@ -7,20 +7,24 @@ import numpy as np
 import random
 from pandas import DataFrame
 
+import hcl
+
 
 class IEMOCAPDataset(Dataset):
 
-    def __init__(self, dataset_name = 'IEMOCAP', split = 'train', speaker_vocab=None, label_vocab=None, args = None, tokenizer = None):
+    def __init__(self, dataset_name = 'IEMOCAP', split = 'train', speaker_vocab=None, label_vocab=None, args = None, tokenizer = None, babystep_index = None):
         self.speaker_vocab = speaker_vocab
         self.label_vocab = label_vocab
         self.args = args
         self.data = self.read(dataset_name, split, tokenizer)
+        if args.hybrid_curriculum and split == 'train':
+            self.data = self.babystep(self.getbuckets(self.data, args.bucket_number), babystep_index)
         print(len(self.data))
 
         self.len = len(self.data)
 
     def read(self, dataset_name, split, tokenizer):
-        with open('../data/%s/%s_data_roberta.json.feature'%(dataset_name, split), encoding='utf-8') as f:
+        with open('../data/%s/%s_data_roberta_mm.json.feature'%(dataset_name, split), encoding='utf-8') as f:
             raw_data = json.load(f)
 
         # process dialogue
@@ -37,16 +41,54 @@ class IEMOCAPDataset(Dataset):
                 utterances.append(u['text'])
                 labels.append(self.label_vocab['stoi'][u['label']] if 'label' in u.keys() else -1)
                 speakers.append(self.speaker_vocab['stoi'][u['speaker']])
-                features.append(u['cls'])
-            dialogs.append({
-                'utterances': utterances,
-                'labels': labels,
-                'speakers':speakers,
-                'features': features
-            })
-        random.shuffle(dialogs)
+                features.append(u['cls'][0] + u['cls'][1]+u['cls'][2])
+                #different modalities
+                #features.append(u['cls'][0])
+                #features.append(u['cls'][1])
+                #features.append(u['cls'][2])
+                #features.append(u['cls'][0] + u['cls'][1])
+                #features.append(u['cls'][0] + u['cls'][2])
+                #features.append(u['cls'][1]+u['cls'][2])
+            dialog = hcl.Dialog(utterances, labels, speakers, features)
+            # dialogs.append({
+            #     'utterances': utterances,
+            #     'labels': labels,
+            #     'speakers':speakers,
+            #     'features': features
+            # })
+            dialogs.append(dialog)
+        if self.args.hybrid_curriculum and split == 'train':
+          totalut = 0
+          totalshift = 0
+          totalspeaker = 0
+          for i in range(0, len(dialogs)):
+            totalut += dialogs[i].numberofutterances
+            totalshift += dialogs[i].numberofemotionshifts
+            totalspeaker += dialogs[i].numberofspeakers
+        # random.shuffle(dialogs)
+          dialogs.sort(key= lambda dialog: dialog.difficulty)
+        # if (split == 'train'):
+        #     num_buckets = 8
+        #     bucket_length = (len(dialogs) + num_buckets - 1) // num_buckets
+        #     buckets = [dialogs[i:i + bucket_length] for i in range(0, len(dialogs), bucket_length)]
+        # print('')
+        else:
+          random.shuffle(dialogs)
         return dialogs
 
+    def getbuckets(self, dialogs, num_buckets):
+        buckets = []
+        bucket_length = (len(dialogs) + num_buckets - 1) // num_buckets
+        buckets = [dialogs[i:i + bucket_length] for i in range(0, len(dialogs), bucket_length)]
+        print('bucket')
+        print(len(buckets))
+        return buckets
+    #parameter for curriculum learning
+    def babystep(self, buckets, index):
+        data = []
+        for i in range(0, index):
+            data+= buckets[i];
+        return data
     def __getitem__(self, index):
         '''
         :param index:

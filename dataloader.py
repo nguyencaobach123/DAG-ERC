@@ -35,18 +35,9 @@ def get_IEMOCAP_loaders(dataset_name = 'IEMOCAP', batch_size=32, num_workers=0, 
     print('building vocab.. ')
     speaker_vocab, label_vocab, person_vec = load_vocab(dataset_name)
     print('building datasets..')
-    trainset = IEMOCAPDataset(dataset_name, 'train',  speaker_vocab, label_vocab, args)
     devset = IEMOCAPDataset(dataset_name, 'dev', speaker_vocab, label_vocab, args)
-    train_sampler = get_train_valid_sampler(trainset)
     valid_sampler = get_train_valid_sampler(devset)
-
-    train_loader = DataLoader(trainset,
-                              batch_size=batch_size,
-                              sampler=train_sampler,
-                              collate_fn=trainset.collate_fn,
-                              num_workers=num_workers,
-                              pin_memory=pin_memory)
-
+    testset = IEMOCAPDataset(dataset_name, 'test',  speaker_vocab, label_vocab, args)
     valid_loader = DataLoader(devset,
                               batch_size=batch_size,
                               sampler=valid_sampler,
@@ -54,11 +45,37 @@ def get_IEMOCAP_loaders(dataset_name = 'IEMOCAP', batch_size=32, num_workers=0, 
                               num_workers=num_workers,
                               pin_memory=pin_memory)
 
-    testset = IEMOCAPDataset(dataset_name, 'test',  speaker_vocab, label_vocab, args)
     test_loader = DataLoader(testset,
                              batch_size=batch_size,
                              collate_fn=testset.collate_fn,
                              num_workers=num_workers,
                              pin_memory=pin_memory)
 
-    return train_loader, valid_loader, test_loader, speaker_vocab, label_vocab, person_vec
+    return valid_loader, test_loader, speaker_vocab, label_vocab, person_vec
+#adding babystep_index argument if using hybrid_curriculum training
+def get_train_loader(dataset_name = 'IEMOCAP', batch_size=32, num_workers=0, pin_memory=False, args = None, babystep_index = None):
+    print('building vocab.. ')
+    speaker_vocab, label_vocab, person_vec = load_vocab(dataset_name)
+    print('building datasets..')
+    if (args.hybrid_curriculum):
+            trainset = IEMOCAPDataset(dataset_name, 'train', speaker_vocab, label_vocab, args, None, babystep_index)
+            train_sampler = get_train_valid_sampler(trainset)
+            train_loader = DataLoader(trainset,
+                                      batch_size=batch_size,
+                                      sampler=train_sampler,
+                                      collate_fn=trainset.collate_fn,
+                                      num_workers=num_workers,
+                                      pin_memory=pin_memory)
+            # train_loaders.append(train_loader)
+    else:
+        trainset = IEMOCAPDataset(dataset_name, 'train', speaker_vocab, label_vocab, args)
+        train_sampler = get_train_valid_sampler(trainset)
+        train_loader = DataLoader(trainset,
+                              batch_size=batch_size,
+                              sampler=train_sampler,
+                              collate_fn=trainset.collate_fn,
+                              num_workers=num_workers,
+                              pin_memory=pin_memory)
+        # train_loaders.append(train_loader)
+
+    return train_loader
