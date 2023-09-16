@@ -1,5 +1,11 @@
-# MultiDAG
+# MultiDAG+HCL
 Using DAG + hybrid curriculum learning with multimodal data
+
+## Requirements
+* Python 3.6
+* PyTorch 1.6.0
+* [Transformers](https://github.com/huggingface/transformers) 3.5.1
+* CUDA 10.1
 
 ### Datasets and Utterance Feature
 You can download the dataset and extracted utterance feature from https://drive.google.com/drive/folders/1zCfjx-HhqEY2tQlxvg1X_6T7sB6hVA2T?usp=sharing. Multimodal datasets are only available for IEMOCAP and MELD, marking with "_mm" in their names.
