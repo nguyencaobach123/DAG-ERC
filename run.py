@@ -92,7 +92,7 @@ if __name__ == '__main__':
 
     parser.add_argument('--nodal_att_type', type=str, default=None, choices=['global','past'], help='type of nodal attention')
 
-    parser.add_argument('--hybrid_curriculum', action='store_true', default=False, help='Enables hybrid curriculum')
+    parser.add_argument('--curriculum', action='store_true', default=False, help='Enables curriculum learning')
 
     parser.add_argument('--bucket_number', type=int, default=0)
 
@@ -145,7 +145,7 @@ if __name__ == '__main__':
     best_model = None
     for e in range(n_epochs):
         start_time = time.time()
-        #for hybrid curiculum learning
+        #for curiculum learning
         if e + 1 < args.bucket_number:
             train_loader = get_train_loader(dataset_name=args.dataset_name, batch_size=batch_size, num_workers=0,
                                             args=args, babystep_index=e + 1)

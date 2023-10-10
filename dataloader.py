@@ -52,12 +52,12 @@ def get_IEMOCAP_loaders(dataset_name = 'IEMOCAP', batch_size=32, num_workers=0, 
                              pin_memory=pin_memory)
 
     return valid_loader, test_loader, speaker_vocab, label_vocab, person_vec
-#adding babystep_index argument if using hybrid_curriculum training
+#adding babystep_index argument if using curriculum learning
 def get_train_loader(dataset_name = 'IEMOCAP', batch_size=32, num_workers=0, pin_memory=False, args = None, babystep_index = None):
     print('building vocab.. ')
     speaker_vocab, label_vocab, person_vec = load_vocab(dataset_name)
     print('building datasets..')
-    if (args.hybrid_curriculum):
+    if (args.curriculum):
             trainset = IEMOCAPDataset(dataset_name, 'train', speaker_vocab, label_vocab, args, None, babystep_index)
             train_sampler = get_train_valid_sampler(trainset)
             train_loader = DataLoader(trainset,

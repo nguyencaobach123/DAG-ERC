@@ -7,7 +7,7 @@ import numpy as np
 import random
 from pandas import DataFrame
 
-import hcl
+import cl
 
 
 class IEMOCAPDataset(Dataset):
@@ -17,7 +17,7 @@ class IEMOCAPDataset(Dataset):
         self.label_vocab = label_vocab
         self.args = args
         self.data = self.read(dataset_name, split, tokenizer)
-        if args.hybrid_curriculum and split == 'train':
+        if args.curriculum and split == 'train':
             self.data = self.babystep(self.getbuckets(self.data, args.bucket_number), babystep_index)
         print(len(self.data))
 
@@ -49,7 +49,7 @@ class IEMOCAPDataset(Dataset):
                 #features.append(u['cls'][0] + u['cls'][1])
                 #features.append(u['cls'][0] + u['cls'][2])
                 #features.append(u['cls'][1]+u['cls'][2])
-            dialog = hcl.Dialog(utterances, labels, speakers, features)
+            dialog = cl.Dialog(utterances, labels, speakers, features)
             # dialogs.append({
             #     'utterances': utterances,
             #     'labels': labels,
@@ -57,7 +57,7 @@ class IEMOCAPDataset(Dataset):
             #     'features': features
             # })
             dialogs.append(dialog)
-        if self.args.hybrid_curriculum and split == 'train':
+        if self.args.curriculum and split == 'train':
           totalut = 0
           totalshift = 0
           totalspeaker = 0

@@ -155,7 +155,7 @@ if __name__ == '__main__':
     parser.add_argument('--nodal_att_type', type=str, default=None, choices=['global', 'past'],
                         help='type of nodal attention')
 
-    parser.add_argument('--hybrid_curriculum', action='store_true', default=False, help='Enables hybrid curriculum')
+    parser.add_argument('--curriculum', action='store_true', default=False, help='Enables curriculum learning')
 
     parser.add_argument('--bucket_number', type=int, default=0, help='Number of buckets using')
 
